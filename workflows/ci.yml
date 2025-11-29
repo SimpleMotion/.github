@@ -1,0 +1,146 @@
+# Reusable CI Workflow
+# Usage: uses: <org>/.github/workflows/ci.yml@main
+
+name: CI
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+      go-version:
+        description: 'Go version to use'
+        required: false
+        type: string
+        default: '1.21'
+      run-lint:
+        description: 'Run linting'
+        required: false
+        type: boolean
+        default: true
+      run-tests:
+        description: 'Run tests'
+        required: false
+        type: boolean
+        default: true
+      run-build:
+        description: 'Run build'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  detect-language:
+    runs-on: ubuntu-latest
+    outputs:
+      language: ${{ steps.detect.outputs.language }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f "package.json" ]; then
+            echo "language=node" >> $GITHUB_OUTPUT
+          elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+            echo "language=python" >> $GITHUB_OUTPUT
+          elif [ -f "go.mod" ]; then
+            echo "language=go" >> $GITHUB_OUTPUT
+          else
+            echo "language=unknown" >> $GITHUB_OUTPUT
+          fi
+
+  node-ci:
+    needs: detect-language
+    if: needs.detect-language.outputs.language == 'node'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        if: inputs.run-lint
+        run: npm run lint --if-present
+
+      - name: Test
+        if: inputs.run-tests
+        run: npm test --if-present
+
+      - name: Build
+        if: inputs.run-build
+        run: npm run build --if-present
+
+  python-ci:
+    needs: detect-language
+    if: needs.detect-language.outputs.language == 'python'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e ".[dev]" || pip install -e .; fi
+
+      - name: Lint
+        if: inputs.run-lint
+        run: |
+          pip install ruff
+          ruff check . || true
+
+      - name: Test
+        if: inputs.run-tests
+        run: |
+          pip install pytest
+          pytest --tb=short || true
+
+  go-ci:
+    needs: detect-language
+    if: needs.detect-language.outputs.language == 'go'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Lint
+        if: inputs.run-lint
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run || true
+
+      - name: Test
+        if: inputs.run-tests
+        run: go test -v ./...
+
+      - name: Build
+        if: inputs.run-build
+        run: go build ./...

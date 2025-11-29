@@ -1,0 +1,81 @@
+# Reusable Security Workflow
+# Usage: uses: <org>/.github/workflows/security.yml@main
+
+name: Security
+
+on:
+  workflow_call:
+    inputs:
+      enable-codeql:
+        description: 'Enable CodeQL analysis'
+        required: false
+        type: boolean
+        default: true
+      enable-dependency-review:
+        description: 'Enable dependency review'
+        required: false
+        type: boolean
+        default: true
+      codeql-languages:
+        description: 'Languages for CodeQL (comma-separated)'
+        required: false
+        type: string
+        default: 'javascript,typescript,python,go'
+
+jobs:
+  codeql:
+    if: inputs.enable-codeql
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJson(format('["{0}"]', replace(inputs.codeql-languages, ',', '","'))) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  dependency-review:
+    if: inputs.enable-dependency-review && github.event_name == 'pull_request'
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  secrets-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
