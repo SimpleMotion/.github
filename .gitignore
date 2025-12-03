@@ -1,0 +1,84 @@
+# SM .gitignore-home for MacOS.
+
+.CFUserTextEncoding
+.DS_Store
+.Trash/
+.config/
+.local/
+.viminfo
+.npm/
+.zsh_history
+.zsh_sessions/
+
+# Claude Code  
+
+!.claude.json
+!.claude.json.backup
+
+!.claude/settings.json
+!.claude/CLAUDE.md
+!.claude/README.md
+
+.claude/
+
+Applications/
+Desktop/
+Documents/
+Downloads/
+Library/
+Movies/
+Music/
+Pictures/
+Public/
+SimpleMotion/
+
+# SM .gitignore-project
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+.secrets/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+vendor/
+.pnp/
+.pnp.js
+
+# Build outputs
+dist/
+build/
+                                                                                                                                                                               
+# *.swp
